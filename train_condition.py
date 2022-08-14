@@ -13,6 +13,16 @@ from tqdm import tqdm
 from tensorboardX import SummaryWriter
 from utils import *
 from torch.utils.data import Subset
+import shutil
+
+def upload_file(name, path):
+	shutil.copyfile(path, f"/content/drive/MyDrive/AiModels/train_hrviton/{name}")
+	
+def delete_file_by_path(path):
+	try:
+		os.unlink(path)
+	except:
+		print("Error deleting file")
 
 
 def iou_metric(y_pred_batch, y_true_batch):
@@ -63,7 +73,7 @@ def get_opt():
 
     parser.add_argument("--tensorboard_count", type=int, default=100)
     parser.add_argument("--display_count", type=int, default=100)
-    parser.add_argument("--save_count", type=int, default=10000)
+    parser.add_argument("--save_count", type=int, default=1000)
     parser.add_argument("--load_step", type=int, default=0)
     parser.add_argument("--keep_step", type=int, default=300000)
     parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
@@ -114,6 +124,10 @@ def train(opt, train_loader, test_loader, val_loader, board, tocg, D):
     tocg.train()
     D.cuda()
     D.train()
+	
+	  #Google Drive Upload
+    last_tocg_id = ''
+    last_d_id = ''
 
     # criterion
     criterionL1 = nn.L1Loss()
@@ -442,8 +456,15 @@ def train(opt, train_loader, test_loader, val_loader, board, tocg, D):
 
         # save
         if (step + 1) % opt.save_count == 0:
-            save_checkpoint(tocg, os.path.join(opt.checkpoint_dir, opt.name, 'tocg_step_%06d.pth' % (step + 1)))
-            save_checkpoint(D, os.path.join(opt.checkpoint_dir, opt.name, 'D_step_%06d.pth' % (step + 1)))
+            delete_file_by_path(last_d_id)
+            delete_file_by_path(last_tocg_id)
+            # shutil.rmtree("/content/drive/MyDrive/AiModels/train_hrviton/")
+            last_d_id = os.path.join(opt.checkpoint_dir, opt.name, 'D_step_%06d.pth' % (step + 1))
+            last_tocg_id = os.path.join(opt.checkpoint_dir, opt.name, 'tocg_step_%06d.pth' % (step + 1))
+            save_checkpoint(tocg, last_tocg_id)
+            save_checkpoint(D, last_d_id)
+            upload_file('D_step_%06d.pth' % (step + 1), last_d_id )
+            upload_file('tocg_step_%06d.pth' % (step + 1), last_tocg_id )
 
 def main():
     opt = get_opt()
@@ -488,7 +509,9 @@ def main():
 
     # Save Checkpoint
     save_checkpoint(tocg, os.path.join(opt.checkpoint_dir, opt.name, 'tocg_final.pth'))
+    upload_file('tocg_final.pth', os.path.join(opt.checkpoint_dir, opt.name, 'tocg_final.pth'))
     save_checkpoint(D, os.path.join(opt.checkpoint_dir, opt.name, 'D_final.pth'))
+    upload_file('D_final.pth', os.path.join(opt.checkpoint_dir, opt.name, 'D_final.pth'))
     print("Finished training %s!" % opt.name)
 
 
